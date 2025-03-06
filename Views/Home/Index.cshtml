@@ -1,0 +1,163 @@
+﻿@model IEnumerable<BookManager.Models.BookModel>
+
+@{
+    ViewBag.Title = "Book Collection";
+}
+
+<style>
+    .table-bordered {
+        border: 2px solid #333;
+    }
+
+        .table-bordered th, .table-bordered td {
+            border: 1px solid #555;
+        }
+
+    .input-group input, .input-group button {
+        border: 1px solid #555;
+    }
+
+        .input-group input:focus, .input-group button:focus {
+            border-color: #333;
+        }
+
+    .btn {
+        border-color: #555;
+    }
+
+        .btn:hover {
+            background-color: #444;
+        }
+</style>
+
+<div class="container">
+    <h1 class="my-4 text-center">Book Collection</h1>
+
+    <!-- CSV Upload & Search Bar (Same Row) -->
+    <div class="row mb-3">
+        <!-- CSV Upload -->
+        <div class="col-md-6">
+            <form asp-action="Index" method="post" enctype="multipart/form-data">
+                <div class="input-group">
+                    <input type="file" name="csvFile" class="form-control" required />
+                    <button class="btn btn-primary" type="submit">Upload CSV</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="col-md-6">
+            <form asp-action="Search" method="post">
+                <div class="input-group">
+                    <input type="text" name="searchTerm" class="form-control" placeholder="Search by title or author" onkeyup="filterBooks()" id="searchInput" />
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="booksTable">
+            <thead class="thead-dark">
+                <tr>
+                    <th onclick="sortTable(0)">ID</th>
+                    <th onclick="sortTable(1)">Title</th>
+                    <th onclick="sortTable(2)">Author</th>
+                    <th onclick="sortTable(3)">Genre</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var book in Model)
+                {
+                    <tr data-id="@book.Id">
+                        <td>@book.Id</td>
+                        <td contenteditable="true" onblur="updateBook(@book.Id, 'Title', this.innerText)">@book.Title</td>
+                        <td contenteditable="true" onblur="updateBook(@book.Id, 'Author', this.innerText)">@book.Author</td>
+                        <td contenteditable="true" onblur="updateBook(@book.Id, 'Genre', this.innerText)">@book.Genre</td>
+                        <td>
+                            <button class="btn btn-danger delete-btn">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    function filterBooks() {
+        let input = document.getElementById("searchInput").value.toLowerCase();
+        let rows = document.querySelectorAll("#booksTable tbody tr");
+        rows.forEach(row => {
+            let title = row.cells[1].innerText.toLowerCase();
+            let author = row.cells[2].innerText.toLowerCase();
+            let genre = row.cells[3].innerText.toLowerCase();
+            row.style.display = title.includes(input) || author.includes(input) || genre.includes(input) ? "" : "none";
+        });
+    }
+
+        function sortTable(columnIndex) {
+        let table = document.getElementById("booksTable");
+        let tbody = table.querySelector("tbody");
+        let rows = Array.from(tbody.querySelectorAll("tr"));
+        let ascending = table.getAttribute("data-order") === "asc";
+
+        rows.sort((rowA, rowB) => {
+            let cellA = rowA.cells[columnIndex].innerText.trim().toLowerCase();
+            let cellB = rowB.cells[columnIndex].innerText.trim().toLowerCase();
+            return ascending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+        });
+        table.setAttribute("data-order", ascending ? "desc" : "asc");
+        rows.forEach(row => tbody.appendChild(row));
+        document.querySelectorAll(".btn-danger").forEach(button => {
+            button.classList.remove("btn-white");
+            button.classList.add("btn-danger");
+        });
+    }
+
+
+    function updateBook(id, field, value) {
+        $.ajax({
+        url: '/Home/Update',
+        type: 'POST',
+        data: { id: id, field: field, value: value },
+        success: function (response) {
+            console.log("Book updated successfully!", response);
+        },
+        error: function () {
+            alert("Error updating book.");
+        }
+    });
+    }
+
+        $(document).on("click", ".delete-btn", function () {
+        var row = $(this).closest("tr");
+        var bookId = row.data("id"); // Corrected to match `data-id`
+
+        if (!bookId) {
+            console.error("Error: Book ID is undefined.");
+            return;
+        }
+
+        if (confirm("Are you sure you want to delete this book?")) {
+            $.ajax({
+                url: '/Home/Delete',
+                type: 'POST',
+                data: { id: bookId },
+                success: function () {
+                    row.remove();
+                    console.log("Book deleted successfully.");
+                },
+                error: function () {
+                    alert("Error deleting book.");
+                }
+            });
+        }
+    });
+
+
+</script>
+
